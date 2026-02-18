@@ -1,0 +1,817 @@
+{% extends 'frontend/base_dashboard.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/inbox-modern.css' %}">
+{% endblock %}
+
+{% block main_content %}
+<div class="page-content">
+    <div class="page-header-banner">
+        <a href="{% url 'frontend:dashboard' %}" class="back-link">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+        </a>
+        <div>
+            <h1>Message Studio</h1>
+            <p>Test routing logic and poll device inboxes</p>
+        </div>
+    </div>
+    
+    <div class="studio-grid">
+        <div class="studio-card">
+            <div class="card-header">
+                <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M6.343 6.343l-.707.707m12.728 0l-.707-.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                <h2>Simulator</h2>
+            </div>
+            
+            <form id="message-form" class="studio-form">
+                <div class="form-group">
+                    <label for="target-device">Source Device</label>
+                    <select id="target-device" name="device_id" class="form-control" required>
+                        <option value="">Select a device...</option>
+                        {% for device in devices %}
+                        <option value="{{ device.device_id }}" data-hid="{{ device.hid }}">
+                            {{ device.hid }}
+                            {% if device.users.count %} ({{ device.users.count }} users){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="device-api-key">Device API Key</label>
+                    <div class="input-group">
+                        <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                        </svg>
+                        <input type="text" id="device-api-key" name="api_key" placeholder="Enter device API key" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message-type">Message Type</label>
+                    <select id="message-type" name="message_type" class="form-control" required>
+                        <option value="alert">Alert (Default)</option>
+                        <option value="alarm">Alarm (Priority)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="payload">Payload (JSON)</label>
+                    <textarea id="payload" name="payload" class="form-control" rows="6" required>{"temp": 24, "status": "ok"}</textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-full" id="send-btn">
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                    <span>Send Message</span>
+                </button>
+            </form>
+        </div>
+        
+        <div class="studio-card">
+            <div class="card-header-modern-studio">
+                <div class="card-header-title">
+                    <div class="card-icon-wrapper-modern">
+                        <svg class="card-icon-modern" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Device Inbox</h2>
+                        <p class="card-subtitle-modern">View messages for selected device</p>
+                    </div>
+                </div>
+                <button class="btn-modern btn-refresh" id="refresh-inbox-btn" onclick="if(window.loadInbox){const s=document.getElementById('target-device');window.loadInbox(s?s.value:null);}">
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span>Refresh</span>
+                </button>
+            </div>
+            
+            <div id="inbox-container" class="studio-inbox-container">
+                <div class="empty-state-modern">
+                    <div class="empty-icon-wrapper">
+                        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                        </svg>
+                    </div>
+                    <h3>No Device Selected</h3>
+                    <p>Select a device from the simulator to view its inbox</p>
+                    <p class="empty-hint">Messages sent <strong>TO</strong> the selected device will appear here</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Debug: Log token availability
+    console.log('Studio page loaded. Token check:', {
+        windowAccessToken: typeof window !== 'undefined' ? (window.accessToken ? 'exists' : 'missing') : 'window undefined',
+        templateToken: '{{ access_token|default:"NOT_SET" }}' !== 'NOT_SET' ? 'exists' : 'missing',
+        sessionCheck: 'Session token check will happen in functions'
+    });
+    
+    // Helper function to handle both old and new API formats
+    function getApiKey(data) {
+        return data['api-key'] || data.api_key || '';
+    }
+    
+    // Helper function to get message payload (handles both msg and payload)
+    function getMessagePayload(message) {
+        return message.msg || message.payload || {};
+    }
+    
+    // Helper function to get timestamp (handles both timestamp and tt)
+    function getMessageTimestamp(message, fallback) {
+        if (message.timestamp) return message.timestamp;
+        if (message.tt) return new Date(message.tt * 1000);
+        if (message.tt_string) {
+            try {
+                return new Date(message.tt_string);
+            } catch (e) {
+                return fallback || new Date();
+            }
+        }
+        return fallback || new Date();
+    }
+    
+    // Define functions FIRST, before DOMContentLoaded
+    window.loadDeviceApiKey = async function(deviceId) {
+        const apiKeyInput = document.getElementById('device-api-key');
+        if (!apiKeyInput) {
+            console.error('API key input not found');
+            return false;
+        }
+        
+        try {
+            // Try multiple sources for token
+            let token = window.accessToken || '{{ access_token|default:"" }}' || localStorage.getItem('access_token');
+            if (!token) {
+                apiKeyInput.value = '';
+                apiKeyInput.placeholder = 'Please login to load API key';
+                apiKeyInput.disabled = false;
+                apiKeyInput.classList.remove('loading');
+                return false;
+            }
+            
+            const headers = getAuthHeaders('GET');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            console.log('Fetching API key for device:', deviceId);
+            const response = await fetch(`/api/devices/${deviceId}/`, {
+                headers: headers
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('API key loaded successfully');
+                // Handle both api-key (new spec format) and api_key (backward compatibility)
+                apiKeyInput.value = data['api-key'] || data.api_key || '';
+                apiKeyInput.placeholder = 'Device API key';
+                apiKeyInput.disabled = false;
+                apiKeyInput.classList.remove('loading');
+                
+                // Add visual feedback
+                apiKeyInput.style.borderColor = '#10b981';
+                apiKeyInput.style.transition = 'border-color 0.3s ease';
+                setTimeout(() => {
+                    apiKeyInput.style.borderColor = '';
+                }, 2000);
+                
+                return true;
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Failed to load API key:', response.status, errorData);
+                apiKeyInput.value = '';
+                apiKeyInput.placeholder = 'Failed to load API key';
+                apiKeyInput.disabled = false;
+                apiKeyInput.classList.remove('loading');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error loading API key:', error);
+            apiKeyInput.value = '';
+            apiKeyInput.placeholder = 'Error loading API key';
+            apiKeyInput.disabled = false;
+            apiKeyInput.classList.remove('loading');
+            return false;
+        }
+    };
+    
+    window.loadInbox = async function(deviceId) {
+        if (!deviceId) {
+            const select = document.getElementById('target-device');
+            deviceId = select ? select.value : null;
+        }
+        
+        if (!deviceId) {
+            const container = document.getElementById('inbox-container');
+            if (container) {
+                container.innerHTML = '<div class="empty-state"><p>Select a device to view its inbox</p></div>';
+            }
+            return;
+        }
+        
+        const container = document.getElementById('inbox-container');
+        if (!container) {
+            console.error('Inbox container not found');
+            return;
+        }
+        
+        container.innerHTML = '<div class="empty-state"><p>Loading messages...</p></div>';
+        console.log('Loading inbox for device:', deviceId);
+        
+        try {
+            // Try multiple sources for token
+            let token = window.accessToken || '{{ access_token|default:"" }}' || localStorage.getItem('access_token');
+                if (!token) {
+                container.innerHTML = '<div class="empty-state-modern error-state"><div class="empty-icon-wrapper error"><svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3>Authentication Required</h3><p>Please login to view inbox</p><button class="btn-modern btn-primary" onclick="window.location.href=\'/login/\'">Login</button></div>';
+                return;
+            }
+            
+            const headers = getAuthHeaders('GET');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch(`/api/devices/${deviceId}/inbox/`, {
+                headers: headers
+            });
+            
+            if (response.status === 401) {
+                container.innerHTML = '<div class="empty-state-modern error-state"><div class="empty-icon-wrapper error"><svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3>Unauthorized</h3><p>Please login again to view inbox</p><button class="btn-modern btn-primary" onclick="window.location.href=\'/login/\'">Login</button></div>';
+                return;
+            }
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                container.innerHTML = `<div class="empty-state-modern error-state"><div class="empty-icon-wrapper error"><svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3>Error Loading Inbox</h3><p>${errorData.error || errorData.detail || 'Failed to load inbox'}</p><button class="btn-modern btn-primary" onclick="window.loadInbox('${deviceId}')">Try Again</button></div>`;
+                return;
+            }
+            
+            const data = await response.json();
+            
+            // Ensure data is an array - handle different response formats
+            let inboxItems = [];
+            if (Array.isArray(data)) {
+                inboxItems = data;
+            } else if (data.results && Array.isArray(data.results)) {
+                inboxItems = data.results;
+            } else if (data.data && Array.isArray(data.data)) {
+                inboxItems = data.data;
+            } else if (typeof data === 'object') {
+                // Single item or object, try to extract array
+                inboxItems = Object.values(data).find(val => Array.isArray(val)) || [];
+            }
+            
+            if (inboxItems.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state-modern">
+                        <div class="empty-icon-wrapper">
+                            <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                            </svg>
+                        </div>
+                        <h3>No Pending Messages</h3>
+                        <p>This device's inbox is empty. Messages sent <strong>TO</strong> this device will appear here.</p>
+                        <p class="empty-hint">
+                            <strong>💡 Note:</strong> Messages sent <strong>FROM</strong> this device are routed to other devices' inboxes, not this one. Check other devices' inboxes to see routed messages.
+                        </p>
+                    </div>
+                `;
+            } else {
+                // Use modern card design matching the main inbox
+                let html = '<div class="inbox-grid-modern studio-inbox-grid">';
+                inboxItems.forEach((item, index) => {
+                    const message = item.message || item;
+                    const messageId = message.message_id || message.id || item.id;
+                    const messageType = message.type || 'Unknown';
+                    const isAlarm = messageType.toLowerCase() === 'alarm';
+                    const status = item.status || 'pending';
+                    const timestamp = getMessageTimestamp(message, item.created_at);
+                    const formattedTime = formatTimestamp(timestamp);
+                    const subType = formatMessageSubType(message);
+                    const payload = getMessagePayload(message);
+                    const payloadHtml = formatMessagePayload(payload);
+                    const routingHtml = formatRoutingInfo(message, item);
+                    
+                    html += `
+                        <div class="inbox-card-modern ${isAlarm ? 'card-alarm' : 'card-alert'}" data-index="${index}" data-status="${status}">
+                            <div class="card-indicator ${isAlarm ? 'indicator-alarm' : 'indicator-alert'}"></div>
+                            <div class="card-content">
+                                <div class="card-header-modern">
+                                    <div class="card-badge-modern">
+                                        <div class="badge-icon ${isAlarm ? 'icon-alarm' : 'icon-alert'}">
+                                            ${getMessageTypeIcon(messageType)}
+                                        </div>
+                                        <div class="badge-content">
+                                            <span class="badge-title">${subType}</span>
+                                            <span class="badge-meta">${messageType.toUpperCase()}</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-actions-modern">
+                                        <div class="status-badge-modern status-${status}">
+                                            ${status === 'pending' ? '⏳ Pending' : status === 'acknowledged' ? '✓ Acknowledged' : status}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-body-modern">
+                                    <div class="message-preview-modern">
+                                        ${payloadHtml}
+                                    </div>
+                                    ${routingHtml}
+                                </div>
+                                
+                                <div class="card-footer-modern">
+                                    <div class="card-meta-modern">
+                                        <div class="meta-item">
+                                            <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            <span>${formattedTime}</span>
+                                        </div>
+                                    </div>
+                                    ${status === 'pending' ? `
+                                        <button class="btn-modern btn-acknowledge" onclick="ackMessage('${deviceId}', '${messageId}')" data-device-id="${deviceId}" data-message-id="${messageId}">
+                                            <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Acknowledge</span>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+                console.log('Inbox loaded successfully with', inboxItems.length, 'messages');
+            }
+        } catch (error) {
+            console.error('Error loading inbox:', error);
+            container.innerHTML = '<div class="empty-state"><p>Error loading inbox: ' + error.message + '</p></div>';
+        }
+    };
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const targetDeviceSelect = document.getElementById('target-device');
+        const apiKeyInput = document.getElementById('device-api-key');
+        const messageForm = document.getElementById('message-form');
+        
+        if (!targetDeviceSelect || !apiKeyInput) {
+            console.error('Required elements not found');
+            return;
+        }
+        
+        // Handle device selection change
+        targetDeviceSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const deviceId = selectedOption.value;
+            
+            if (deviceId) {
+                console.log('Device selected:', deviceId);
+                
+                // Show loading state for API key
+                apiKeyInput.value = '';
+                apiKeyInput.placeholder = 'Loading API key...';
+                apiKeyInput.disabled = true;
+                apiKeyInput.classList.add('loading');
+                
+                // Show loading in inbox container
+                const inboxContainer = document.getElementById('inbox-container');
+                if (inboxContainer) {
+                    inboxContainer.innerHTML = '<div class="loading-state-modern"><div class="loading-spinner"></div><p class="loading-text">Loading messages...</p></div>';
+                }
+                
+                // Load API key and inbox simultaneously
+                // Functions are already defined at top level, call them directly
+                Promise.all([
+                    window.loadDeviceApiKey(deviceId),
+                    window.loadInbox(deviceId)
+                ]).then(([apiKeyLoaded, inboxLoaded]) => {
+                    console.log('Device data loaded - API Key:', apiKeyLoaded, 'Inbox loaded');
+                }).catch(error => {
+                    console.error('Error loading device data:', error);
+                });
+            } else {
+                // Clear fields when no device selected
+                apiKeyInput.value = '';
+                apiKeyInput.placeholder = 'Enter device API key';
+                apiKeyInput.disabled = false;
+                apiKeyInput.classList.remove('loading');
+                
+                // Clear inbox
+                const inboxContainer = document.getElementById('inbox-container');
+                if (inboxContainer) {
+                    inboxContainer.innerHTML = '<div class="empty-state-modern"><div class="empty-icon-wrapper"><svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg></div><h3>No Device Selected</h3><p>Select a device from the simulator to view its inbox</p></div>';
+                }
+            }
+        });
+        
+        // Auto-load if device is already selected on page load
+        if (targetDeviceSelect.value) {
+            setTimeout(() => {
+                targetDeviceSelect.dispatchEvent(new Event('change'));
+            }, 100);
+        }
+        
+        // Handle form submission
+        messageForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const deviceId = formData.get('device_id');
+            const apiKey = formData.get('api_key');
+            const messageType = formData.get('message_type');
+            const payloadText = formData.get('payload');
+            
+            let payload;
+            try {
+                payload = JSON.parse(payloadText);
+            } catch (error) {
+                alert('Invalid JSON payload');
+                return;
+            }
+            
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span>Sending...</span>';
+            
+            try {
+                // Get device HID for the API endpoint
+                const selectedOption = targetDeviceSelect.options[targetDeviceSelect.selectedIndex];
+                const deviceHid = selectedOption.dataset.hid || selectedOption.text;
+                
+                // Use the device-specific endpoint with API key
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                };
+                
+                // Add CSRF token
+                const csrfToken = getCSRFToken();
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+                
+                const response = await fetch(`/api/messages/hid/${deviceHid}/`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        type: messageType,
+                        payload: payload
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Show detailed success message
+                    const messageId = data.message_id || 'N/A';
+                    const targetCount = data.target_devices || 0;
+                    const routed = data.status === 'routed';
+                    
+                    let successMsg = `✅ Message sent successfully!\n\n`;
+                    successMsg += `Message ID: ${messageId}\n`;
+                    successMsg += `Status: ${routed ? 'Routed' : 'Created'}\n`;
+                    successMsg += `Target Devices: ${targetCount}\n`;
+                    
+                    if (targetCount === 0) {
+                        successMsg += `\n⚠️ Warning: No target devices found.\n`;
+                        successMsg += `This may be because:\n`;
+                        successMsg += `- No other devices in the same group\n`;
+                        successMsg += `- NID mismatch (device NID doesn't match)\n`;
+                        successMsg += `- Distance filter excluded devices\n`;
+                        successMsg += `- All devices are inactive`;
+                    } else {
+                        successMsg += `\n✨ Message routed to ${targetCount} device(s)`;
+                    }
+                    
+                    alert(successMsg);
+                    
+                    // Reload inbox for the selected device
+                    if (window.loadInbox) {
+                        window.loadInbox(deviceId);
+                    }
+                    
+                    // If message was routed to other devices, suggest checking their inboxes
+                    if (targetCount > 0) {
+                        console.log(`Message routed to ${targetCount} device(s). Check their inboxes to see the message.`);
+                    }
+                } else {
+                    const errorMsg = data.error || data.detail || 'Failed to send message';
+                    if (data.errors) {
+                        const errors = Object.entries(data.errors).map(([key, val]) => `${key}: ${val}`).join('\n');
+                        alert(`❌ Error: ${errorMsg}\n\n${errors}`);
+                    } else {
+                        alert(`❌ Error: ${errorMsg}`);
+                    }
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Send Message</span>';
+            }
+        });
+    });
+    
+    // Make loadInbox available globally
+    window.loadInbox = async function(deviceId) {
+        if (!deviceId) {
+            const select = document.getElementById('target-device');
+            deviceId = select ? select.value : null;
+        }
+        
+        if (!deviceId) {
+            const container = document.getElementById('inbox-container');
+            if (container) {
+                container.innerHTML = '<div class="empty-state"><p>Select a device to view its inbox</p></div>';
+            }
+            return;
+        }
+        
+        const container = document.getElementById('inbox-container');
+        if (!container) {
+            console.error('Inbox container not found');
+            return;
+        }
+        
+        container.innerHTML = '<div class="empty-state"><p>Loading messages...</p></div>';
+        console.log('Loading inbox for device:', deviceId);
+        
+        try {
+            // Try multiple sources for token - check in order of preference
+            let token = null;
+            
+            // First try window.accessToken (set in base template)
+            if (typeof window !== 'undefined' && window.accessToken) {
+                token = window.accessToken;
+                console.log('✓ Using token from window.accessToken');
+            }
+            
+            // Then try template variable
+            if (!token) {
+                const templateToken = '{{ access_token|default:"" }}';
+                if (templateToken && templateToken.trim() !== '' && templateToken !== '""') {
+                    token = templateToken;
+                    console.log('✓ Using token from template variable');
+                }
+            }
+            
+            // Finally try localStorage
+            if (!token) {
+                token = localStorage.getItem('access_token');
+                if (token) {
+                    console.log('✓ Using token from localStorage');
+                }
+            }
+            
+            // Debug logging
+            console.log('Token sources check:', {
+                windowAccessToken: typeof window !== 'undefined' ? (window.accessToken ? 'exists (' + window.accessToken.substring(0, 20) + '...)' : 'missing') : 'window undefined',
+                templateToken: '{{ access_token|default:"NOT_SET" }}' !== 'NOT_SET' ? 'exists' : 'missing',
+                localStorageToken: localStorage.getItem('access_token') ? 'exists' : 'missing',
+                finalToken: token ? 'found (' + token.substring(0, 20) + '...)' : 'missing'
+            });
+            
+            if (!token) {
+                container.innerHTML = '<div class="empty-state"><p>Please <a href="/login/">login</a> to view inbox</p></div>';
+                console.error('❌ No access token available from any source. User may need to login again.');
+                return;
+            }
+            
+            // Build headers with the token we found
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            
+            // Add CSRF token
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            console.log('Making inbox request:', {
+                url: `/api/devices/${deviceId}/inbox/`,
+                hasAuth: !!headers['Authorization'],
+                hasCSRF: !!headers['X-CSRFToken']
+            });
+            
+            const response = await fetch(`/api/devices/${deviceId}/inbox/`, {
+                headers: headers
+            });
+            
+            console.log('Inbox response:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+            
+            if (response.status === 401) {
+                console.error('401 Unauthorized - token may be invalid or expired');
+                container.innerHTML = '<div class="empty-state"><p>Unauthorized. Please <a href="/login/">login again</a>.</p></div>';
+                return;
+            }
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Inbox load error:', errorData);
+                container.innerHTML = `<div class="empty-state"><p>Error: ${errorData.error || errorData.detail || 'Failed to load inbox'}</p></div>`;
+                return;
+            }
+            
+            const data = await response.json();
+            
+            // Ensure data is an array - handle different response formats
+            let inboxItems = [];
+            if (Array.isArray(data)) {
+                inboxItems = data;
+            } else if (data.results && Array.isArray(data.results)) {
+                inboxItems = data.results;
+            } else if (data.data && Array.isArray(data.data)) {
+                inboxItems = data.data;
+            } else if (typeof data === 'object') {
+                // Single item or object, try to extract array
+                inboxItems = Object.values(data).find(val => Array.isArray(val)) || [];
+            }
+            
+            if (inboxItems.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state-modern">
+                        <div class="empty-icon-wrapper">
+                            <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                            </svg>
+                        </div>
+                        <h3>No Pending Messages</h3>
+                        <p>This device's inbox is empty. Messages sent <strong>TO</strong> this device will appear here.</p>
+                        <p class="empty-hint">
+                            <strong>💡 Note:</strong> Messages sent <strong>FROM</strong> this device are routed to other devices' inboxes, not this one. Check other devices' inboxes to see routed messages.
+                        </p>
+                    </div>
+                `;
+            } else {
+                // Use modern card design matching the main inbox
+                let html = '<div class="inbox-grid-modern studio-inbox-grid">';
+                inboxItems.forEach((item, index) => {
+                    const message = item.message || item;
+                    const messageId = message.message_id || message.id || item.id;
+                    const messageType = message.type || 'Unknown';
+                    const isAlarm = messageType.toLowerCase() === 'alarm';
+                    const status = item.status || 'pending';
+                    const timestamp = getMessageTimestamp(message, item.created_at);
+                    const formattedTime = formatTimestamp(timestamp);
+                    const subType = formatMessageSubType(message);
+                    const payload = getMessagePayload(message);
+                    const payloadHtml = formatMessagePayload(payload);
+                    const routingHtml = formatRoutingInfo(message, item);
+                    
+                    html += `
+                        <div class="inbox-card-modern ${isAlarm ? 'card-alarm' : 'card-alert'}" data-index="${index}" data-status="${status}">
+                            <div class="card-indicator ${isAlarm ? 'indicator-alarm' : 'indicator-alert'}"></div>
+                            <div class="card-content">
+                                <div class="card-header-modern">
+                                    <div class="card-badge-modern">
+                                        <div class="badge-icon ${isAlarm ? 'icon-alarm' : 'icon-alert'}">
+                                            ${getMessageTypeIcon(messageType)}
+                                        </div>
+                                        <div class="badge-content">
+                                            <span class="badge-title">${subType}</span>
+                                            <span class="badge-meta">${messageType.toUpperCase()}</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-actions-modern">
+                                        <div class="status-badge-modern status-${status}">
+                                            ${status === 'pending' ? '⏳ Pending' : status === 'acknowledged' ? '✓ Acknowledged' : status}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-body-modern">
+                                    <div class="message-preview-modern">
+                                        ${payloadHtml}
+                                    </div>
+                                    ${routingHtml}
+                                </div>
+                                
+                                <div class="card-footer-modern">
+                                    <div class="card-meta-modern">
+                                        <div class="meta-item">
+                                            <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            <span>${formattedTime}</span>
+                                        </div>
+                                    </div>
+                                    ${status === 'pending' ? `
+                                        <button class="btn-modern btn-acknowledge" onclick="ackMessage('${deviceId}', '${messageId}')" data-device-id="${deviceId}" data-message-id="${messageId}">
+                                            <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Acknowledge</span>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+        } catch (error) {
+            container.innerHTML = '<div class="empty-state-modern error-state"><div class="empty-icon-wrapper error"><svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3>Error Loading Inbox</h3><p>' + error.message + '</p><button class="btn-modern btn-primary" onclick="window.loadInbox(' + (deviceId ? "'" + deviceId + "'" : 'null') + ')">Try Again</button></div>';
+        }
+    }
+    
+    // Helper function to escape HTML (keep for compatibility)
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Acknowledge message function - make globally available
+    window.ackMessage = async function(deviceId, messageId) {
+        try {
+            // Try multiple sources for token
+            let token = window.accessToken || '{{ access_token|default:"" }}' || localStorage.getItem('access_token');
+            const headers = getAuthHeaders('POST');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            // Find the button and disable it
+            const button = event?.target?.closest('.btn-acknowledge') || document.querySelector(`button[data-message-id="${messageId}"]`);
+            
+            if (button) {
+                button.disabled = true;
+                button.classList.add('processing');
+                button.innerHTML = '<div class="btn-spinner"></div><span>Processing...</span>';
+            }
+            
+            const response = await fetch(`/api/devices/${deviceId}/inbox/${messageId}/ack/`, {
+                method: 'POST',
+                headers: headers
+            });
+            
+            if (response.ok) {
+                // Show success animation
+                if (button) {
+                    button.classList.remove('processing');
+                    button.classList.add('success');
+                    button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>✓ Acknowledged</span>';
+                }
+                
+                // Reload inbox after short delay
+                setTimeout(() => {
+                    if (window.loadInbox) {
+                        window.loadInbox(deviceId);
+                    }
+                }, 800);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                alert('Failed to acknowledge message: ' + (errorData.error || errorData.detail || 'Unknown error'));
+                
+                if (button) {
+                    button.disabled = false;
+                    button.classList.remove('processing');
+                    button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Acknowledge</span>';
+                }
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            
+            const button = document.querySelector(`button[data-message-id="${messageId}"]`);
+            if (button) {
+                button.disabled = false;
+                button.classList.remove('processing');
+                button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Acknowledge</span>';
+            }
+        }
+    };
+</script>
+{% endblock %}

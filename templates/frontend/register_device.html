@@ -1,0 +1,539 @@
+{% extends 'frontend/base_dashboard.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/multiselect.css' %}">
+{% endblock %}
+
+{% block main_content %}
+<div class="page-content">
+    <div class="page-header">
+        <div class="header-content">
+            <div>
+                <a href="{% url 'frontend:dashboard' %}" class="back-link">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Dashboard
+                </a>
+                <h1>Register New Device</h1>
+                <p>Add a new IoT device to your account</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-card">
+        <form id="register-device-form">
+            {% csrf_token %}
+            <div id="form-messages"></div>
+            
+            <div class="form-group">
+                <label for="hid">Hardware ID (HID) <span class="required">*</span></label>
+                <input type="text" name="hid" id="hid" class="form-control" required placeholder="e.g., DEVICE-001">
+                <small class="form-text">Unique hardware identifier for the device</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="group_id">Group Type <span class="required">*</span></label>
+                <select name="group_id" id="group_id" class="form-control" required disabled>
+                    {% if user.group %}
+                    <option value="{{ user.group.group_id }}" data-uses-nid="{{ user.group.uses_nid|yesno:'true,false' }}" data-uses-distance="{{ user.group.uses_distance|yesno:'true,false' }}" data-radius="{{ user.group.radius|default:'' }}" selected>
+                        {{ user.group.get_group_type_display }} 
+                        {% if user.group.uses_nid %}(Uses NID){% endif %}
+                        {% if user.group.uses_distance %}(Uses Distance){% endif %}
+                    </option>
+                    {% else %}
+                    <option value="">No group assigned to your account</option>
+                    {% endif %}
+                </select>
+                <small class="form-text">
+                    Groups are assigned to owners, not devices. Your assigned group: 
+                    <strong>{% if user.group %}{{ user.group.get_group_type_display }}{% else %}None - please update your account settings{% endif %}</strong>
+                    {% if user.group %}
+                    <br>Device limit: {% if user.can_register_multiple_devices %}Multiple devices allowed{% else %}1 device only{% endif %}
+                    <br>NID is managed by system admin.
+                    {% endif %}
+                </small>
+            </div>
+            
+            <div class="form-row" id="location-group">
+                <div class="form-group">
+                    <label for="latitude">Latitude</label>
+                    <input type="number" step="any" name="latitude" id="latitude" class="form-control" placeholder="e.g., 40.7128">
+                </div>
+                <div class="form-group">
+                    <label for="longitude">Longitude</label>
+                    <input type="number" step="any" name="longitude" id="longitude" class="form-control" placeholder="e.g., -74.0060">
+                </div>
+            </div>
+            <small class="form-text" id="location-hint" style="margin-top: -12px; margin-bottom: 16px; display: none;">Required for distance-based routing groups</small>
+            
+            <div class="form-group">
+                <label for="webhook_url">Webhook URL</label>
+                <input type="url" name="webhook_url" id="webhook_url" class="form-control" placeholder="https://example.com/webhook">
+                <small class="form-text">Optional webhook URL for push notifications</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="retry_limit">Retry Limit</label>
+                <input type="number" name="retry_limit" id="retry_limit" class="form-control" value="3" min="1" max="10">
+                <small class="form-text">Number of webhook retry attempts (default: 3)</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="user_ids">Associated Users (Maximum 6)</label>
+                <div class="modern-multiselect">
+                    <div class="multiselect-trigger" id="multiselect-trigger">
+                        <span class="multiselect-placeholder">Select users (up to 6)...</span>
+                        <svg class="multiselect-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                    <div class="multiselect-dropdown" id="multiselect-dropdown">
+                        <div class="multiselect-search">
+                            <input type="text" id="user-search" placeholder="Search users..." autocomplete="off">
+                        </div>
+                        <div class="multiselect-options" id="multiselect-options">
+                            <!-- Will be populated via API -->
+                        </div>
+                        <div class="multiselect-footer">
+                            <span id="selected-count">0</span> / 6 users selected
+                        </div>
+                    </div>
+                    <input type="hidden" name="user_ids" id="user_ids" value="">
+                </div>
+                <small class="form-text">Select sub-users for this account. Maximum 6 users allowed per device.</small>
+            </div>
+
+            <div class="form-group">
+                <label>Add Sub-User (optional)</label>
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" id="sub_user_username" class="form-control" placeholder="Username">
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="sub_user_email" class="form-control" placeholder="Email">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" id="sub_user_first_name" class="form-control" placeholder="First name">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="sub_user_last_name" class="form-control" placeholder="Last name">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="sub_user_password" class="form-control" placeholder="Password (min 8 chars)">
+                </div>
+                <button type="button" class="btn btn-secondary" id="add-sub-user-btn">Add Sub-User</button>
+                <small class="form-text">Sub-users can log in and manage this device only.</small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="submit-btn">Register Device</button>
+                <a href="{% url 'frontend:dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('register-device-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const formMessages = document.getElementById('form-messages');
+        const groupSelect = document.getElementById('group_id');
+        const locationGroup = document.getElementById('location-group');
+        const locationHint = document.getElementById('location-hint');
+        
+        let selectedUserIds = [];
+        let allUsers = [];
+        
+        const addSubUserBtn = document.getElementById('add-sub-user-btn');
+        const subUserFields = {
+            username: document.getElementById('sub_user_username'),
+            email: document.getElementById('sub_user_email'),
+            first_name: document.getElementById('sub_user_first_name'),
+            last_name: document.getElementById('sub_user_last_name'),
+            password: document.getElementById('sub_user_password'),
+        };
+        
+        // Load available sub-users from API
+        async function loadUsers() {
+            try {
+                const headers = getAuthHeaders('GET');
+                const response = await fetch('/api/owners/sub-users/', { headers });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                allUsers = Array.isArray(data) ? data : (data.results || []);
+                
+                renderUserOptions(allUsers);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                formMessages.innerHTML = '<div class="alert alert-error">Error loading users list. Please refresh the page.</div>';
+            }
+        }
+        
+        // Render user options in modern dropdown
+        function renderUserOptions(users, searchTerm = '') {
+            const optionsContainer = document.getElementById('multiselect-options');
+            const searchLower = searchTerm.toLowerCase();
+            
+            const filteredUsers = users.filter(user => {
+                if (!searchTerm) return true;
+                const name = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+                const email = (user.email || user.username || '').toLowerCase();
+                return name.includes(searchLower) || email.includes(searchLower);
+            });
+            
+            if (filteredUsers.length === 0) {
+                optionsContainer.innerHTML = '<div class="multiselect-no-results">No users found</div>';
+                return;
+            }
+            
+            optionsContainer.innerHTML = filteredUsers.map(user => {
+                const isSelected = selectedUserIds.includes(user.id);
+                const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Unknown';
+                const email = user.email || user.username || '';
+                return `
+                    <div class="multiselect-option ${isSelected ? 'selected' : ''}" data-user-id="${user.id}">
+                        <label class="multiselect-checkbox">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} data-user-id="${user.id}">
+                            <span class="checkmark"></span>
+                        </label>
+                        <div class="multiselect-user-info">
+                            <div class="multiselect-user-name">${name}</div>
+                            <div class="multiselect-user-email">${email}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Attach click handlers
+            optionsContainer.querySelectorAll('.multiselect-option').forEach(option => {
+                option.addEventListener('click', function(e) {
+                    if (e.target.type === 'checkbox') return;
+                    const checkbox = this.querySelector('input[type="checkbox"]');
+                    checkbox.checked = !checkbox.checked;
+                    handleUserSelection(checkbox);
+                });
+            });
+            
+            optionsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    handleUserSelection(this);
+                });
+            });
+        }
+        
+        async function createSubUser() {
+            try {
+                const payload = {
+                    username: subUserFields.username.value.trim(),
+                    email: subUserFields.email.value.trim(),
+                    first_name: subUserFields.first_name.value.trim(),
+                    last_name: subUserFields.last_name.value.trim(),
+                    password: subUserFields.password.value,
+                };
+                
+                if (!payload.username || !payload.email || !payload.password) {
+                    formMessages.innerHTML = '<div class="alert alert-error">Username, email, and password are required.</div>';
+                    return;
+                }
+                
+                const headers = getAuthHeaders('POST');
+                const response = await fetch('/api/owners/sub-users/', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorText = errorData.error || 'Unable to create sub-user.';
+                    formMessages.innerHTML = `<div class="alert alert-error">${errorText}</div>`;
+                    return;
+                }
+                
+                const newUser = await response.json();
+                allUsers.push(newUser);
+                renderUserOptions(allUsers);
+                
+                Object.values(subUserFields).forEach(field => {
+                    if (field) field.value = '';
+                });
+                
+                formMessages.innerHTML = '<div class="alert alert-success">Sub-user created successfully.</div>';
+            } catch (error) {
+                console.error('Error creating sub-user:', error);
+                formMessages.innerHTML = '<div class="alert alert-error">Error creating sub-user. Please try again.</div>';
+            }
+        }
+        
+        // Handle user selection/deselection
+        function handleUserSelection(checkbox) {
+            const userId = parseInt(checkbox.dataset.userId);
+            const isChecked = checkbox.checked;
+            
+            if (isChecked) {
+                if (selectedUserIds.length >= 6) {
+                    checkbox.checked = false;
+                    alert('Maximum 6 users allowed per device (Phase 0 spec requirement).');
+                    return;
+                }
+                if (!selectedUserIds.includes(userId)) {
+                    selectedUserIds.push(userId);
+                }
+            } else {
+                selectedUserIds = selectedUserIds.filter(id => id !== userId);
+            }
+            
+            updateUserDisplay();
+            renderUserOptions(allUsers, document.getElementById('user-search').value);
+        }
+        
+        // Update user display
+        function updateUserDisplay() {
+            const count = selectedUserIds.length;
+            const countDisplay = document.getElementById('selected-count');
+            const trigger = document.getElementById('multiselect-trigger');
+            const placeholder = trigger.querySelector('.multiselect-placeholder');
+            const hiddenInput = document.getElementById('user_ids');
+            
+            countDisplay.textContent = `${count} / 6 users selected`;
+            hiddenInput.value = selectedUserIds.join(',');
+            
+            if (count === 0) {
+                placeholder.textContent = 'Select users (up to 6)...';
+                trigger.classList.remove('has-selection');
+            } else {
+                const selectedNames = allUsers
+                    .filter(u => selectedUserIds.includes(u.id))
+                    .map(u => `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || u.email)
+                    .join(', ');
+                placeholder.textContent = selectedNames.length > 40 ? selectedNames.substring(0, 40) + '...' : selectedNames;
+                trigger.classList.add('has-selection');
+            }
+            
+            if (count > 6) {
+                countDisplay.classList.add('text-danger');
+                submitBtn.disabled = true;
+            } else {
+                countDisplay.classList.remove('text-danger');
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Modern multiselect toggle
+        const multiselectTrigger = document.getElementById('multiselect-trigger');
+        const multiselectDropdown = document.getElementById('multiselect-dropdown');
+        const userSearch = document.getElementById('user-search');
+        const multiselectArrow = multiselectTrigger.querySelector('.multiselect-arrow');
+        
+        multiselectTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = multiselectDropdown.classList.toggle('open');
+            if (isOpen) {
+                userSearch.focus();
+                if (multiselectArrow) {
+                    multiselectArrow.style.transform = 'rotate(180deg)';
+                }
+            } else {
+                if (multiselectArrow) {
+                    multiselectArrow.style.transform = 'rotate(0deg)';
+                }
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!multiselectTrigger.contains(e.target) && !multiselectDropdown.contains(e.target)) {
+                multiselectDropdown.classList.remove('open');
+                if (multiselectArrow) {
+                    multiselectArrow.style.transform = 'rotate(0deg)';
+                }
+            }
+        });
+        
+        // Search functionality
+        userSearch.addEventListener('input', function(e) {
+            renderUserOptions(allUsers, e.target.value);
+        });
+        
+        // Initialize user display
+        updateUserDisplay();
+        
+        // Update group-specific field visibility
+        groupSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const usesDistance = selectedOption.dataset.usesDistance === 'true';
+            
+            locationGroup.style.display = usesDistance ? 'flex' : 'none';
+            locationHint.style.display = usesDistance ? 'block' : 'none';
+            
+            if (usesDistance) {
+                document.getElementById('latitude').required = true;
+                document.getElementById('longitude').required = true;
+            } else {
+                document.getElementById('latitude').required = false;
+                document.getElementById('longitude').required = false;
+            }
+        });
+        
+        
+        // Handle form submission via API
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Registering...</span>';
+            formMessages.innerHTML = '';
+            
+            try {
+                const formData = new FormData(form);
+                const groupId = formData.get('group_id');
+                const hid = formData.get('hid');
+                
+                // Validation
+                if (!hid || !hid.trim()) {
+                    formMessages.innerHTML = '<div class="alert alert-error">Hardware ID (HID) is required</div>';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Register Device';
+                    return;
+                }
+                
+                // Prepare data for API
+                // Note: group_id is optional - device will use owner's group automatically
+                const data = {
+                    hid: hid.trim(),
+                };
+                
+                // Add group_id if provided (should match owner's group, but backend will validate)
+                if (groupId) {
+                    data.group_id = parseInt(groupId);
+                }
+                
+                // Add optional fields - NID (uses owner's NID if not provided)
+                const nid = formData.get('nid')?.trim();
+                if (nid && nid.length > 0) {
+                    data.nid = nid;
+                }
+                // If no NID provided, device will use owner's NID automatically
+                
+                // Add location if both lat and lon provided
+                const latitude = formData.get('latitude');
+                const longitude = formData.get('longitude');
+                if (latitude && longitude && latitude.trim() && longitude.trim()) {
+                    const lat = parseFloat(latitude);
+                    const lon = parseFloat(longitude);
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        data.location_lat = lat;
+                        data.location_lon = lon;
+                    }
+                }
+                
+                // Add webhook URL if provided
+                const webhookUrl = formData.get('webhook_url')?.trim();
+                if (webhookUrl && webhookUrl.length > 0) {
+                    data.webhook_url = webhookUrl;
+                }
+                
+                // Add retry limit if provided
+                const retryLimit = formData.get('retry_limit');
+                if (retryLimit) {
+                    const limit = parseInt(retryLimit);
+                    if (!isNaN(limit) && limit > 0) {
+                        data.retry_limit = limit;
+                    }
+                }
+                
+                // Add user_ids if selected (must be array of integers)
+                if (selectedUserIds.length > 0) {
+                    data.user_ids = selectedUserIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+                }
+                
+                const headers = getAuthHeaders('POST');
+                headers['Content-Type'] = 'application/json';
+                
+                console.log('Submitting device data:', data);
+                
+                const response = await fetch('/api/devices/', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(data)
+                });
+                
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 500));
+                    formMessages.innerHTML = '<div class="alert alert-error">Server error: Invalid response format. Please check console for details.</div>';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Register Device';
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    formMessages.innerHTML = '<div class="alert alert-success">Device registered successfully! Redirecting...</div>';
+                    setTimeout(() => {
+                        window.location.href = '{% url "frontend:dashboard" %}';
+                    }, 1500);
+                } else {
+                    let errorMsg = 'Failed to register device';
+                    if (result.error) {
+                        errorMsg = result.error;
+                    } else if (result.detail) {
+                        errorMsg = result.detail;
+                    } else if (result.non_field_errors) {
+                        errorMsg = Array.isArray(result.non_field_errors) 
+                            ? result.non_field_errors.join(', ') 
+                            : result.non_field_errors;
+                    } else if (typeof result === 'object') {
+                        const errors = [];
+                        for (const [field, messages] of Object.entries(result)) {
+                            if (Array.isArray(messages)) {
+                                errors.push(`${field}: ${messages.join(', ')}`);
+                            } else {
+                                errors.push(`${field}: ${messages}`);
+                            }
+                        }
+                        if (errors.length > 0) {
+                            errorMsg = errors.join(' | ');
+                        }
+                    }
+                    formMessages.innerHTML = `<div class="alert alert-error">Error: ${errorMsg}</div>`;
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Register Device';
+                }
+            } catch (error) {
+                console.error('Form submission error:', error);
+                formMessages.innerHTML = `<div class="alert alert-error">Error: ${error.message}. Please check console for details.</div>`;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Register Device';
+            }
+        });
+        
+        // Load users on page load
+        loadUsers();
+        
+        if (addSubUserBtn) {
+            addSubUserBtn.addEventListener('click', createSubUser);
+        }
+        
+        // Trigger change on group select to show/hide fields
+        if (groupSelect.value) {
+            groupSelect.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

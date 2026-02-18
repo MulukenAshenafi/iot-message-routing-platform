@@ -1,0 +1,274 @@
+{% extends 'frontend/base_dashboard.html' %}
+{% load static %}
+
+{% block main_content %}
+<div class="page-content">
+    <div class="page-header">
+        <div class="header-content">
+            <div>
+                <h1>Dashboard</h1>
+                <p>Monitor and manage your IoT devices</p>
+            </div>
+            <button class="btn btn-primary" onclick="window.location.href='{% url 'frontend:register_device' %}'">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                <span>Register device</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-label">Active Devices</span>
+                <svg class="stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
+            </div>
+            <div class="stat-value" id="active-devices-count">{{ active_devices_count|default:0 }}</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-label">System Events</span>
+                <svg class="stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-value" id="system-events-count">{{ system_events_count|default:0 }}</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-label">Uptime</span>
+                <svg class="stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-value">99.99%</div>
+        </div>
+    </div>
+    
+    <div class="content-grid">
+        <div class="content-card">
+            <div class="card-header">
+                <div>
+                    <h2>Devices</h2>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="loadDevices()">
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span>Refresh</span>
+                </button>
+            </div>
+            
+            <div id="devices-container">
+                {% if devices %}
+                    <div class="devices-list">
+                        {% for device in devices %}
+                        <div class="device-item">
+                            <div class="device-info">
+                                <h3>{{ device.hid }}</h3>
+                                <p>Group: {{ device.group.group_type|title }}</p>
+                                <p>Status: {{ device.active|yesno:"Active,Inactive" }}</p>
+                                {% if device.users.count %}
+                                <p class="text-muted">
+                                    <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                    </svg>
+                                    {{ device.users.count }} user{{ device.users.count|pluralize }} (max 6)
+                                </p>
+                                {% endif %}
+                            </div>
+                            <div class="device-actions">
+                                <a href="{% url 'frontend:device_detail' device_id=device.device_id %}" class="btn btn-sm">View</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                        </svg>
+                        <h3>No devices</h3>
+                        <p>Get started by registering your first device</p>
+                        <button class="btn btn-primary" onclick="window.location.href='{% url 'frontend:register_device' %}'">
+                            <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span>Register device</span>
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="content-card">
+            <h2>Activity</h2>
+            <div class="activity-list" id="activity-list">
+                <p class="text-muted">No recent activity</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadDevices() {
+        const container = document.getElementById('devices-container');
+        const refreshBtn = event?.target || document.querySelector('button[onclick="loadDevices()"]');
+        
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg><span>Loading...</span>';
+        }
+        
+        try {
+            const headers = getAuthHeaders('GET');
+            const response = await fetch('/api/devices/', { headers });
+            
+            if (response.status === 401) {
+                window.location.href = '/login/';
+                return;
+            }
+            
+            if (!response.ok) {
+                throw new Error('Failed to load devices');
+            }
+            
+            const data = await response.json();
+            const devices = Array.isArray(data) ? data : (data.results || []);
+            
+            // Update stats
+            document.getElementById('active-devices-count').textContent = devices.length;
+            
+            // Update devices list
+            if (devices.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                        </svg>
+                        <h3>No devices</h3>
+                        <p>Get started by registering your first device</p>
+                        <button class="btn btn-primary" onclick="window.location.href='{% url 'frontend:register_device' %}'">
+                            <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span>Register device</span>
+                        </button>
+                    </div>
+                `;
+            } else {
+                let html = '<div class="devices-list">';
+                devices.forEach(device => {
+                    const userCount = device.users ? device.users.length : 0;
+                    html += `
+                        <div class="device-item">
+                            <div class="device-info">
+                                <h3>${device.hid || 'Unknown'}</h3>
+                                <p>Group: ${device.group ? (device.group.group_type || 'N/A') : 'N/A'}</p>
+                                <p>Status: ${device.active ? 'Active' : 'Inactive'}</p>
+                                ${userCount > 0 ? `
+                                    <p class="text-muted">
+                                        <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 14px; height: 14px; display: inline;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                        </svg>
+                                        ${userCount} user${userCount !== 1 ? 's' : ''} (max 6)
+                                    </p>
+                                ` : ''}
+                            </div>
+                            <div class="device-actions">
+                                <a href="/devices/${device.device_id}/" class="btn btn-sm">View</a>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+            
+            // Load activity
+            loadActivity();
+        } catch (error) {
+            console.error('Error:', error);
+            container.innerHTML = `<div class="empty-state"><p>Error loading devices: ${error.message}</p></div>`;
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg><span>Refresh</span>';
+            }
+        }
+    }
+    
+    // Helper function to get message payload (handles both msg and payload)
+    function getMessagePayload(message) {
+        return message.msg || message.payload || {};
+    }
+    
+    // Helper function to get timestamp (handles both timestamp and tt)
+    function getMessageTimestamp(message, fallback) {
+        if (message.timestamp) return message.timestamp;
+        if (message.tt) return new Date(message.tt * 1000);
+        if (message.tt_string) {
+            try {
+                return new Date(message.tt_string);
+            } catch (e) {
+                return fallback || new Date();
+            }
+        }
+        return fallback || new Date();
+    }
+    
+    async function loadActivity() {
+        const activityContainer = document.getElementById('activity-list');
+        try {
+            const headers = getAuthHeaders('GET');
+            const response = await fetch('/api/messages/?ordering=-timestamp&limit=5', { headers });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const messages = Array.isArray(data) ? data : (data.results || []);
+                
+                if (messages.length === 0) {
+                    activityContainer.innerHTML = '<p class="text-muted">No recent activity</p>';
+                } else {
+                    let html = '';
+                    messages.forEach(msg => {
+                        // Handle both old and new API formats
+                        const payload = getMessagePayload(msg);
+                        const timestamp = getMessageTimestamp(msg);
+                        const activity = formatActivityMessage({...msg, payload, timestamp});
+                        html += `
+                            <div class="activity-item ${activity.isAlarm ? 'activity-alarm' : ''}">
+                                <div class="activity-icon">
+                                    <span style="font-size: 20px;">${activity.icon}</span>
+                                </div>
+                                <div class="activity-content">
+                                    <p><strong>${activity.type}</strong> from ${activity.source}</p>
+                                    ${activity.summary ? `<p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 0 0;">${escapeHtml(activity.summary)}</p>` : ''}
+                                    <small>${activity.time}</small>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    activityContainer.innerHTML = html;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading activity:', error);
+        }
+    }
+    
+    // Load activity on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadActivity();
+    });
+</script>
+{% endblock %}
+
+

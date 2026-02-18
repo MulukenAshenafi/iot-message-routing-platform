@@ -1,0 +1,69 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - IoT Core</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+    <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+</head>
+<body class="auth-page-simple">
+    <div class="auth-wrapper-simple">
+        <div class="auth-header-simple">
+            <div class="auth-logo-square">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12h4l3 8 4-16 3 8h4"></path>
+                </svg>
+            </div>
+            <h1>Welcome back</h1>
+            <p>Sign in to your account to continue</p>
+        </div>
+        
+        <div class="auth-card-simple">
+            <form method="post" action="{% url 'frontend:login' %}" class="auth-form-simple">
+                {% csrf_token %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert-simple {% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                {% if form.errors %}
+                    <div class="alert-simple alert-error">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <div class="form-group-simple">
+                    <label for="id_username">Username</label>
+                    <input type="text" name="username" id="id_username" class="form-input-simple" placeholder="Enter your username" required autofocus>
+                </div>
+                
+                <div class="form-group-simple">
+                    <label for="id_password">Password</label>
+                    <input type="password" name="password" id="id_password" class="form-input-simple" placeholder="Enter your password" required>
+                </div>
+                
+                <button type="submit" class="btn-auth-simple">
+                    <svg class="btn-icon-left" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"></path>
+                    </svg>
+                    <span>Sign in</span>
+                </button>
+            </form>
+        </div>
+        
+        <div class="auth-footer-simple">
+            <p>Don't have an account? <a href="{% url 'frontend:register' %}">Create account</a></p>
+        </div>
+    </div>
+</body>
+</html>
+

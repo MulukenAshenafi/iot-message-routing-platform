@@ -1,0 +1,265 @@
+{% extends 'frontend/base_dashboard.html' %}
+{% load static %}
+
+{% block main_content %}
+<div class="page-content">
+    <div class="page-header">
+        <div class="header-content">
+            <div>
+                <h1>Settings</h1>
+                <p>Manage your account settings and preferences</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-card">
+        <form id="profile-form" method="post" action="{% url 'frontend:settings' %}">
+            {% csrf_token %}
+            <div id="form-messages"></div>
+            
+            <h2>Profile Information</h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" name="first_name" id="first_name" class="form-control" value="{{ user.first_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" name="last_name" id="last_name" class="form-control" value="{{ user.last_name }}" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" name="email" id="email" class="form-control" value="{{ user.email }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" name="username" id="username" class="form-control" value="{{ user.username }}" disabled>
+                <small class="form-text">Username cannot be changed</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="address">Address</label>
+                <textarea name="address" id="address" class="form-control" rows="3">{{ user.address|default:"" }}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="telephone">Telephone</label>
+                <input type="text" name="telephone" id="telephone" class="form-control" value="{{ user.telephone|default:"" }}">
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="save-btn">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='{% url 'frontend:dashboard' %}'">Cancel</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="content-card" style="margin-top: 24px;">
+        <h2>Account Information</h2>
+        <div class="device-info-detail">
+            <div class="info-row">
+                <span class="info-label">User ID:</span>
+                <span class="info-value">{{ user.id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Account Type:</span>
+                <span class="info-value">
+                    {% if user.is_staff %}
+                        <span class="badge badge-success">Administrator</span>
+                    {% else %}
+                        <span class="badge">Regular User</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Active Status:</span>
+                <span class="info-value">
+                    <span class="badge {% if user.active %}badge-success{% else %}badge-danger{% endif %}">
+                        {{ user.active|yesno:"Active,Inactive" }}
+                    </span>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Date Joined:</span>
+                <span class="info-value">{{ user.date_joined|date:"Y-m-d H:i" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Last Login:</span>
+                <span class="info-value">{{ user.last_login|date:"Y-m-d H:i"|default:"Never" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Total Devices Owned:</span>
+                <span class="info-value">{{ user.devices.count }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Devices Assigned To:</span>
+                <span class="info-value" id="assigned-devices-count">Loading...</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-card" style="margin-top: 24px;">
+        <h2>Associated Devices</h2>
+        <div id="assigned-devices-list" class="devices-list">
+            <div class="empty-state">
+                <p>Loading assigned devices...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-card" style="margin-top: 24px;">
+        <h2>API Access</h2>
+        <div class="device-info-detail">
+            <div class="info-row">
+                <span class="info-label">API Authentication:</span>
+                <span class="info-value">
+                    <small>API keys are generated per device. Use JWT tokens for user authentication via <code>/api/auth/login/</code></small>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">JWT Token:</span>
+                <span class="info-value">
+                    <small>Use the API login endpoint (<code>/api/auth/login/</code>) to get JWT tokens for API access</small>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load assigned devices (devices where user is in users list)
+    async function loadAssignedDevices() {
+        const assignedList = document.getElementById('assigned-devices-list');
+        const assignedCount = document.getElementById('assigned-devices-count');
+        
+        try {
+            const headers = getAuthHeaders('GET');
+            const response = await fetch('/api/devices/', { headers });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const devices = Array.isArray(data) ? data : (data.results || []);
+                
+                // Filter devices where current user is in users list
+                const assignedDevices = devices.filter(device => {
+                    const userId = {{ user.id }};
+                    const deviceUsers = device.users || [];
+                    return deviceUsers.some(u => u.id === userId || u === userId);
+                });
+                
+                assignedCount.textContent = assignedDevices.length;
+                
+                if (assignedDevices.length === 0) {
+                    assignedList.innerHTML = `
+                        <div class="empty-state">
+                            <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                            </svg>
+                            <h3>No assigned devices</h3>
+                            <p>You are not associated with any devices yet</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '<div class="devices-list">';
+                    assignedDevices.forEach(device => {
+                        html += `
+                            <div class="device-item">
+                                <div class="device-info">
+                                    <h3>${device.hid || 'Unknown'}</h3>
+                                    <p>Owner: ${device.owner ? (device.owner.email || 'N/A') : 'N/A'}</p>
+                                    <p>Group: ${device.group ? (device.group.group_type || 'N/A') : 'N/A'}</p>
+                                </div>
+                                <div class="device-actions">
+                                    <a href="/devices/${device.device_id}/" class="btn btn-sm">View</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    assignedList.innerHTML = html;
+                }
+            }
+        } catch (error) {
+            assignedList.innerHTML = `<div class="empty-state"><p>Error loading devices: ${error.message}</p></div>`;
+            assignedCount.textContent = 'Error';
+        }
+    }
+    
+    // Load assigned devices on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAssignedDevices();
+    });
+    
+    document.getElementById('profile-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const saveBtn = document.getElementById('save-btn');
+        const formMessages = document.getElementById('form-messages');
+        const originalText = saveBtn.innerHTML;
+        
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span>Saving...</span>';
+        formMessages.innerHTML = '';
+        
+        try {
+            const formData = new FormData(this);
+            const data = {
+                first_name: formData.get('first_name'),
+                last_name: formData.get('last_name'),
+                email: formData.get('email'),
+                address: formData.get('address') || '',
+                telephone: formData.get('telephone') || ''
+            };
+            
+            const headers = getAuthHeaders('PATCH');
+            headers['Content-Type'] = 'application/json';
+            
+            const response = await fetch('/api/owners/{{ user.id }}/', {
+                method: 'PATCH',
+                headers: headers,
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                formMessages.innerHTML = '<div class="alert alert-success">Profile updated successfully!</div>';
+                // Update displayed values
+                document.getElementById('first_name').value = result.first_name;
+                document.getElementById('last_name').value = result.last_name;
+                document.getElementById('email').value = result.email;
+                document.getElementById('address').value = result.address || '';
+                document.getElementById('telephone').value = result.telephone || '';
+                
+                // Reload page after 1 second to show updated info
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                let errorMsg = 'Failed to update profile';
+                if (result.error) {
+                    errorMsg = result.error;
+                } else if (result.detail) {
+                    errorMsg = result.detail;
+                } else if (typeof result === 'object') {
+                    const errors = Object.values(result).flat().join(', ');
+                    if (errors) errorMsg = errors;
+                }
+                formMessages.innerHTML = `<div class="alert alert-error">${errorMsg}</div>`;
+            }
+        } catch (error) {
+            formMessages.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    });
+</script>
+{% endblock %}
+

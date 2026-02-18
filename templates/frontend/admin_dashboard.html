@@ -1,0 +1,303 @@
+{% extends 'frontend/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - IoT Core{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block main_content %}
+<div class="page-content">
+    <div class="page-header">
+        <div class="header-content">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p>System overview and management</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button class="btn btn-secondary" onclick="window.location.href='{% url 'frontend:admin_users' %}'">
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <span>Manage Users</span>
+                </button>
+                <button class="btn btn-primary" onclick="window.location.href='{% url 'frontend:admin_device_create' %}'">
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <span>Register Device</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Statistics -->
+    <div class="admin-stats-grid">
+        <div class="admin-stat-card">
+            <div class="admin-stat-header">
+                <span class="admin-stat-label">Total Users</span>
+                <svg class="admin-stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+            </div>
+            <div class="admin-stat-value">{{ total_users }}</div>
+            <div class="admin-stat-change">
+                {{ admin_users }} admin{{ admin_users|pluralize }}, {{ regular_users }} regular
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-header">
+                <span class="admin-stat-label">Total Devices</span>
+                <svg class="admin-stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
+            </div>
+            <div class="admin-stat-value">{{ total_devices }}</div>
+            <div class="admin-stat-change">
+                {{ active_devices }} active
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-header">
+                <span class="admin-stat-label">Total Messages</span>
+                <svg class="admin-stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+            </div>
+            <div class="admin-stat-value">{{ total_messages }}</div>
+            <div class="admin-stat-change">
+                {{ pending_inbox_messages }} pending in inbox
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-header">
+                <span class="admin-stat-label">Groups/Networks</span>
+                <svg class="admin-stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+            <div class="admin-stat-value">{{ total_groups }}</div>
+            <div class="admin-stat-change">
+                Active groups configured
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-header">
+                <span class="admin-stat-label">Users with Devices</span>
+                <svg class="admin-stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="admin-stat-value">{{ users_with_devices }}</div>
+            <div class="admin-stat-change">
+                {{ users_without_devices }} without devices
+            </div>
+        </div>
+    </div>
+    
+    <!-- Group Statistics and Recent Activity -->
+    <div class="admin-grid-2">
+        <!-- Group Statistics -->
+        <div class="admin-section">
+            <div class="admin-section-header">
+                <h2 class="admin-section-title">
+                    <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    Group Statistics
+                </h2>
+            </div>
+            <div>
+                {% for stat in group_stats %}
+                <div class="group-stat-item">
+                    <div>
+                        <div class="group-name">{{ stat.group.get_group_type_display }}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                            {% if stat.group.nid %}NID: {{ stat.group.nid }}{% endif %}
+                            {% if stat.group.radius %} | Radius: {{ stat.group.radius }}km{% endif %}
+                        </div>
+                    </div>
+                    <div class="group-counts">
+                        <span>{{ stat.owner_count }} owner{{ stat.owner_count|pluralize }}</span>
+                        <span>{{ stat.device_count }} device{{ stat.device_count|pluralize }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color: #6b7280; text-align: center; padding: 2rem;">No groups configured</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Recent Users -->
+        <div class="admin-section">
+            <div class="admin-section-header">
+                <h2 class="admin-section-title">
+                    <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    Recent Users
+                </h2>
+                <a href="{% url 'frontend:admin_users' %}" style="font-size: 0.875rem; color: #3b82f6;">View All</a>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Group</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in recent_users %}
+                        <tr onclick="window.location.href='{% url 'frontend:admin_user_edit' user.id %}'" style="cursor: pointer;" title="Click to edit">
+                            <td>
+                                <div style="font-weight: 500;">{{ user.first_name }} {{ user.last_name }}</div>
+                                <div style="font-size: 0.75rem; color: #6b7280;">@{{ user.username }}</div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.group %}
+                                <span class="badge badge-info">{{ user.group.get_group_type_display }}</span>
+                                {% else %}
+                                <span class="badge badge-warning">No Group</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_staff %}
+                                <span class="badge badge-success">Admin</span>
+                                {% elif user.active %}
+                                <span class="badge badge-info">Active</span>
+                                {% else %}
+                                <span class="badge badge-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6b7280; padding: 2rem;">No users found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Devices and Messages -->
+    <div class="admin-grid-2">
+        <!-- Recent Devices -->
+        <div class="admin-section">
+            <div class="admin-section-header">
+                <h2 class="admin-section-title">
+                    <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                    </svg>
+                    Recent Devices
+                </h2>
+                <a href="{% url 'frontend:admin_devices' %}" style="font-size: 0.875rem; color: #3b82f6;">View All</a>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>HID</th>
+                            <th>Owner</th>
+                            <th>Group</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for device in recent_devices %}
+                        <tr onclick="window.location.href='{% url 'frontend:device_detail' device.device_id %}'" style="cursor: pointer;">
+                            <td>
+                                <div style="font-weight: 500;">{{ device.hid }}</div>
+                                {% if device.name %}
+                                <div style="font-size: 0.75rem; color: #6b7280;">{{ device.name }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ device.owner.email }}</td>
+                            <td>
+                                <span class="badge badge-info">{{ device.group.get_group_type_display }}</span>
+                            </td>
+                            <td>
+                                {% if device.active %}
+                                <span class="badge badge-success">Active</span>
+                                {% else %}
+                                <span class="badge badge-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size: 0.75rem; color: #6b7280;">
+                                {{ device.created_at|date:"M d, Y" }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #6b7280; padding: 2rem;">No devices found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Recent Messages -->
+        <div class="admin-section">
+            <div class="admin-section-header">
+                <h2 class="admin-section-title">
+                    <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    Recent Messages
+                </h2>
+                <a href="{% url 'frontend:admin_messages' %}" style="font-size: 0.875rem; color: #3b82f6;">View All</a>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Device</th>
+                            <th>Owner</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for message in recent_messages %}
+                        <tr>
+                            <td>
+                                {% if message.type == 'alarm' %}
+                                <span class="badge badge-danger">Alarm</span>
+                                {% else %}
+                                <span class="badge badge-warning">Alert</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="font-weight: 500;">{{ message.source_device.hid }}</div>
+                            </td>
+                            <td style="font-size: 0.75rem; color: #6b7280;">
+                                {{ message.source_device.owner.email }}
+                            </td>
+                            <td style="font-size: 0.75rem; color: #6b7280;">
+                                {{ message.timestamp|date:"M d, H:i" }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6b7280; padding: 2rem;">No messages found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,550 @@
+{% extends 'frontend/base_dashboard.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/inbox-modern.css' %}">
+{% endblock %}
+
+{% block main_content %}
+<div class="page-content inbox-page-modern">
+    <!-- Modern Header with Stats -->
+    <div class="inbox-header-modern">
+        <div class="header-title-section">
+            <div class="header-icon-wrapper">
+                <svg class="header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="page-title-modern">Message Inbox</h1>
+                <p class="page-subtitle-modern">View and manage messages from all devices</p>
+            </div>
+        </div>
+        <div class="header-stats-modern" id="inbox-stats">
+            <div class="stat-card-modern">
+                <div class="stat-icon stat-icon-pending">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="pending-count">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="stat-card-modern">
+                <div class="stat-icon stat-icon-total">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-count">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modern Controls Bar -->
+    <div class="inbox-controls-modern">
+        <div class="controls-left">
+            <div class="filter-group-modern">
+                <label class="filter-label">
+                    <svg class="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                    </svg>
+                    Filter by Device
+                </label>
+                <select id="device-filter" class="filter-select-modern" onchange="loadInboxMessages()">
+                    <option value="">All Devices</option>
+                    {% for device in devices %}
+                    <option value="{{ device.device_id }}">
+                        {{ device.hid }} 
+                        {% if device.users.count %}<span class="device-users-count">({{ device.users.count }} users)</span>{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group-modern">
+                <label class="filter-label">
+                    <svg class="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    Filter by Type
+                </label>
+                <select id="type-filter" class="filter-select-modern" onchange="loadInboxMessages()">
+                    <option value="">All Types</option>
+                    <option value="alarm">Alarms Only</option>
+                    <option value="alert">Alerts Only</option>
+                </select>
+            </div>
+            
+            <div class="filter-group-modern">
+                <label class="filter-label">
+                    <svg class="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
+                    </svg>
+                    Sort By
+                </label>
+                <select id="sort-filter" class="filter-select-modern" onchange="loadInboxMessages()">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="type">By Type</option>
+                    <option value="device">By Device</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="controls-right">
+            <button class="btn-modern btn-refresh" onclick="loadInboxMessages()" id="refresh-btn">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Messages Container with Loading State -->
+    <div id="messages-container" class="messages-container-modern">
+        <div class="loading-state-modern" id="loading-state">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading messages...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allMessagesData = [];
+    
+    // Helper function to handle both old and new API formats
+    function getApiKey(data) {
+        return data['api-key'] || data.api_key || '';
+    }
+    
+    // Helper function to get message payload (handles both msg and payload)
+    function getMessagePayload(message) {
+        return message.msg || message.payload || {};
+    }
+    
+    // Helper function to get timestamp (handles both timestamp and tt)
+    function getMessageTimestamp(message, fallback) {
+        if (message.timestamp) return message.timestamp;
+        if (message.tt) return new Date(message.tt * 1000);
+        if (message.tt_string) {
+            try {
+                return new Date(message.tt_string);
+            } catch (e) {
+                return fallback || new Date();
+            }
+        }
+        return fallback || new Date();
+    }
+    
+    async function loadInboxMessages() {
+        const deviceFilter = document.getElementById('device-filter');
+        const typeFilter = document.getElementById('type-filter');
+        const sortFilter = document.getElementById('sort-filter');
+        const deviceId = deviceFilter?.value || '';
+        const messageType = typeFilter?.value || '';
+        const sortBy = sortFilter?.value || 'newest';
+        const container = document.getElementById('messages-container');
+        const loadingState = document.getElementById('loading-state');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const token = window.accessToken || '{{ access_token|default:"" }}' || localStorage.getItem('access_token');
+        
+        // Show loading state
+        if (loadingState) loadingState.style.display = 'flex';
+        container.innerHTML = '';
+        
+        // Disable refresh button
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add('loading');
+        }
+        
+        try {
+            const headers = getAuthHeaders('GET');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            if (deviceId) {
+                // Load single device inbox
+                const response = await fetch(`/api/devices/${deviceId}/inbox/`, { headers });
+                
+                if (response.status === 401) {
+                    window.location.href = '/login/';
+                    return;
+                }
+                
+                const data = await response.json();
+                let inboxItems = Array.isArray(data) ? data : (data.results || []);
+                allMessagesData = inboxItems.map(item => ({
+                    ...item,
+                    device_id: deviceId,
+                    device_hid: document.querySelector(`#device-filter option[value="${deviceId}"]`)?.textContent || 'Unknown'
+                }));
+            } else {
+                // Load all devices' inboxes
+                const devicesResponse = await fetch('/api/devices/', { headers });
+                const devicesData = await devicesResponse.json();
+                const devices = Array.isArray(devicesData) ? devicesData : (devicesData.results || []);
+                
+                allMessagesData = [];
+                for (const device of devices) {
+                    try {
+                        const inboxResponse = await fetch(`/api/devices/${device.device_id}/inbox/`, { headers });
+                        if (inboxResponse.ok) {
+                            const inboxData = await inboxResponse.json();
+                            if (Array.isArray(inboxData)) {
+                                allMessagesData = allMessagesData.concat(inboxData.map(item => ({
+                                    ...item,
+                                    device_hid: device.hid,
+                                    device_id: device.device_id
+                                })));
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading inbox for device:', device.device_id, error);
+                    }
+                }
+            }
+            
+            // Apply type filter
+            if (messageType) {
+                allMessagesData = allMessagesData.filter(item => {
+                    const msg = item.message || item;
+                    return msg.type?.toLowerCase() === messageType.toLowerCase();
+                });
+            }
+            
+            // Apply sorting
+            allMessagesData = sortMessages(allMessagesData, sortBy);
+            
+            // Update stats
+            updateStats(allMessagesData);
+            
+            // Hide loading state
+            if (loadingState) loadingState.style.display = 'none';
+            
+            // Display messages
+            displayMessages(allMessagesData, container);
+            
+        } catch (error) {
+            console.error('Error loading inbox:', error);
+            if (loadingState) loadingState.style.display = 'none';
+            container.innerHTML = `
+                <div class="empty-state-modern error-state">
+                    <div class="empty-icon-wrapper error">
+                        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3>Error Loading Messages</h3>
+                    <p>${error.message || 'An error occurred while loading messages'}</p>
+                    <button class="btn-modern btn-primary" onclick="loadInboxMessages()">Try Again</button>
+                </div>
+            `;
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.classList.remove('loading');
+            }
+        }
+    }
+    
+    function sortMessages(messages, sortBy) {
+        const sorted = [...messages];
+        
+        switch(sortBy) {
+            case 'newest':
+                sorted.sort((a, b) => {
+                    const msgA = a.message || a;
+                    const msgB = b.message || b;
+                    const timeA = getMessageTimestamp(msgA, a.created_at || new Date(0));
+                    const timeB = getMessageTimestamp(msgB, b.created_at || new Date(0));
+                    return new Date(timeB) - new Date(timeA);
+                });
+                break;
+            case 'oldest':
+                sorted.sort((a, b) => {
+                    const msgA = a.message || a;
+                    const msgB = b.message || b;
+                    const timeA = getMessageTimestamp(msgA, a.created_at || new Date(0));
+                    const timeB = getMessageTimestamp(msgB, b.created_at || new Date(0));
+                    return new Date(timeA) - new Date(timeB);
+                });
+                break;
+            case 'type':
+                sorted.sort((a, b) => {
+                    const typeA = ((a.message || a).type || '').toLowerCase();
+                    const typeB = ((b.message || b).type || '').toLowerCase();
+                    if (typeA === 'alarm') return -1;
+                    if (typeB === 'alarm') return 1;
+                    return typeA.localeCompare(typeB);
+                });
+                break;
+            case 'device':
+                sorted.sort((a, b) => {
+                    const deviceA = (a.device_hid || '').toLowerCase();
+                    const deviceB = (b.device_hid || '').toLowerCase();
+                    return deviceA.localeCompare(deviceB);
+                });
+                break;
+        }
+        
+        return sorted;
+    }
+    
+    function updateStats(messages) {
+        const pendingCount = messages.filter(m => (m.status || 'pending') === 'pending').length;
+        const totalCount = messages.length;
+        
+        const pendingEl = document.getElementById('pending-count');
+        const totalEl = document.getElementById('total-count');
+        
+        if (pendingEl) {
+            pendingEl.textContent = pendingCount;
+            pendingEl.classList.add('stat-update');
+            setTimeout(() => pendingEl.classList.remove('stat-update'), 300);
+        }
+        if (totalEl) {
+            totalEl.textContent = totalCount;
+            totalEl.classList.add('stat-update');
+            setTimeout(() => totalEl.classList.remove('stat-update'), 300);
+        }
+    }
+    
+    function displayMessages(messages, container) {
+        if (messages.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state-modern">
+                    <div class="empty-icon-wrapper">
+                        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                        </svg>
+                    </div>
+                    <h3>No Messages Found</h3>
+                    <p>There are no messages matching your current filters.</p>
+                    <p class="empty-hint">Try adjusting your filters or check back later.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div class="inbox-grid-modern">';
+        messages.forEach((item, index) => {
+            const message = item.message || item;
+            const messageId = message.message_id || message.id || item.id;
+            const messageType = message.type || 'Unknown';
+            const isAlarm = messageType.toLowerCase() === 'alarm';
+            const status = item.status || 'pending';
+            const timestamp = getMessageTimestamp(message, item.created_at);
+            const formattedTime = formatTimestamp(timestamp);
+            const subType = formatMessageSubType(message);
+            const payload = getMessagePayload(message);
+            const payloadHtml = formatMessagePayload(payload);
+            const routingHtml = formatRoutingInfo(message, item);
+            
+            html += `
+                <div class="inbox-card-modern ${isAlarm ? 'card-alarm' : 'card-alert'}" data-index="${index}" data-status="${status}">
+                    <div class="card-indicator ${isAlarm ? 'indicator-alarm' : 'indicator-alert'}"></div>
+                    <div class="card-content">
+                        <div class="card-header-modern">
+                            <div class="card-badge-modern">
+                                <div class="badge-icon ${isAlarm ? 'icon-alarm' : 'icon-alert'}">
+                                    ${getMessageTypeIcon(messageType)}
+                                </div>
+                                <div class="badge-content">
+                                    <span class="badge-title">${subType}</span>
+                                    <span class="badge-meta">${messageType.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            <div class="card-actions-modern">
+                                <div class="status-badge-modern status-${status}">
+                                    ${status === 'pending' ? '⏳ Pending' : status === 'acknowledged' ? '✓ Acknowledged' : status}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-body-modern">
+                            <div class="message-preview-modern">
+                                ${payloadHtml}
+                            </div>
+                            ${routingHtml}
+                        </div>
+                        
+                        <div class="card-footer-modern">
+                            <div class="card-meta-modern">
+                                <div class="meta-item">
+                                    <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span>${formattedTime}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                                    </svg>
+                                    <span>${item.device_hid || 'Unknown Device'}</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                ${status === 'pending' ? `
+                                    <button class="btn-modern btn-acknowledge" onclick="ackMessage('${item.device_id || ''}', '${messageId}')" data-device-id="${item.device_id || ''}" data-message-id="${messageId}">
+                                        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Acknowledge</span>
+                                    </button>
+                                ` : ''}
+                                <button class="btn-modern" onclick="deleteMessage('${messageId}')" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;" data-message-id="${messageId}">
+                                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                    <span>Delete</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    async function ackMessage(deviceId, messageId) {
+        if (!deviceId || !messageId) {
+            alert('Error: Device ID or Message ID is missing');
+            return;
+        }
+        
+        const button = event?.target?.closest('.btn-acknowledge') || document.querySelector(`button[data-message-id="${messageId}"]`);
+        
+        if (button) {
+            button.disabled = true;
+            button.classList.add('processing');
+            button.innerHTML = '<div class="btn-spinner"></div><span>Processing...</span>';
+        }
+        
+        try {
+            const headers = getAuthHeaders('POST');
+            const response = await fetch(`/api/devices/${deviceId}/inbox/${messageId}/ack/`, {
+                method: 'POST',
+                headers: headers
+            });
+            
+            if (response.ok) {
+                // Show success animation
+                if (button) {
+                    button.classList.remove('processing');
+                    button.classList.add('success');
+                    button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>✓ Acknowledged</span>';
+                }
+                
+                // Reload inbox after short delay
+                setTimeout(() => {
+                    loadInboxMessages();
+                }, 800);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                alert('Failed to acknowledge message: ' + (errorData.error || errorData.detail || 'Unknown error'));
+                if (button) {
+                    button.disabled = false;
+                    button.classList.remove('processing');
+                    button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Acknowledge</span>';
+                }
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            if (button) {
+                button.disabled = false;
+                button.classList.remove('processing');
+                button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Acknowledge</span>';
+            }
+        }
+    }
+    
+    async function deleteMessage(messageId) {
+        if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
+            return;
+        }
+        
+        const button = event?.target?.closest('button') || document.querySelector(`button[data-message-id="${messageId}"]`);
+        
+        if (button) {
+            button.disabled = true;
+            button.classList.add('processing');
+            button.innerHTML = '<div class="btn-spinner"></div><span>Deleting...</span>';
+        }
+        
+        try {
+            // Get CSRF token from cookie or meta tag
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            const csrfToken = getCookie('csrftoken') || document.querySelector('meta[name=csrf-token]')?.content || '';
+            
+            const response = await fetch(`/messages/${messageId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (response.ok || response.redirected) {
+                // Reload inbox after deletion
+                loadInboxMessages();
+            } else {
+                alert('Failed to delete message');
+                if (button) {
+                    button.disabled = false;
+                    button.classList.remove('processing');
+                    button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg><span>Delete</span>';
+                }
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            if (button) {
+                button.disabled = false;
+                button.classList.remove('processing');
+                button.innerHTML = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg><span>Delete</span>';
+            }
+        }
+    }
+    
+    // Load messages on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadInboxMessages();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            const refreshBtn = document.getElementById('refresh-btn');
+            if (refreshBtn && !refreshBtn.disabled) {
+                loadInboxMessages();
+            }
+        }, 30000);
+    });
+</script>
+{% endblock %}

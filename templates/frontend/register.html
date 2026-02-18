@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - IoT Core</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+    <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+</head>
+<body class="auth-page-simple">
+    <div class="auth-wrapper-simple">
+        <div class="auth-header-simple">
+            <div class="auth-logo-square">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+            <h1>Create account</h1>
+            <p>Get started with IoT Core</p>
+        </div>
+        
+        <div class="auth-card-simple">
+            <form method="post" action="{% url 'frontend:register' %}" class="auth-form-simple">
+                {% csrf_token %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert-simple {% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                {% if form.errors %}
+                    <div class="alert-simple alert-error">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <div class="form-group-simple">
+                    <label for="id_username">Username</label>
+                    <input type="text" name="username" id="id_username" class="form-input-simple" placeholder="Choose a username" required autofocus>
+                </div>
+                
+                <div class="form-group-simple">
+                    <label for="id_email">Email</label>
+                    <input type="email" name="email" id="id_email" class="form-input-simple" placeholder="you@example.com" required>
+                </div>
+                
+                <div class="form-group-simple">
+                    <label for="id_password1">Password</label>
+                    <input type="password" name="password1" id="id_password1" class="form-input-simple" placeholder="Create a password" required>
+                </div>
+                
+                <div class="form-group-simple">
+                    <label for="id_password2">Confirm password</label>
+                    <input type="password" name="password2" id="id_password2" class="form-input-simple" placeholder="Confirm your password" required>
+                </div>
+                
+                <div class="form-group-simple">
+                    <label for="id_group_id">Group/Network <span style="color: #ef4444;">*</span></label>
+                    <select name="group_id" id="id_group_id" class="form-input-simple" required>
+                        <option value="">Select a group/network...</option>
+                        {% for group in groups %}
+                        <option value="{{ group.group_id }}" data-uses-nid="{{ group.uses_nid|yesno:'true,false' }}" data-uses-distance="{{ group.uses_distance|yesno:'true,false' }}" data-radius="{{ group.radius|default:'' }}">
+                            {{ group.get_group_type_display }}
+                            {% if group.uses_nid %}(Uses NID){% endif %}
+                            {% if group.uses_distance %}(Uses Distance){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small style="display: block; margin-top: 4px; color: #6b7280; font-size: 0.875rem;">
+                        Select your group/network. Private & Data Logger groups allow multiple devices; others allow only 1 device.
+                    </small>
+                </div>
+                
+                <div class="form-group-simple" id="radius-section" style="display: none;">
+                    <label for="id_radius_km">Routing Radius (km)</label>
+                    <input type="number" step="any" min="0" name="radius_km" id="id_radius_km" class="form-input-simple" placeholder="e.g., 5">
+                    <small style="display: block; margin-top: 4px; color: #6b7280; font-size: 0.875rem;">
+                        Required for distance-based groups (Open, Enhanced, Location). This sets your routing radius.
+                    </small>
+                </div>
+                
+                <button type="submit" class="btn-auth-simple">
+                    <svg class="btn-icon-left" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                    <span>Create account</span>
+                </button>
+            </form>
+        </div>
+        
+        <div class="auth-footer-simple">
+            <p>Already have an account? <a href="{% url 'frontend:login' %}">Sign in</a></p>
+        </div>
+    </div>
+    
+    <script>
+        // Show/hide radius section based on group selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const groupSelect = document.getElementById('id_group_id');
+            const radiusSection = document.getElementById('radius-section');
+            const radiusInput = document.getElementById('id_radius_km');
+            
+            if (groupSelect && radiusSection) {
+                groupSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const usesDistance = selectedOption.dataset.usesDistance === 'true';
+                    
+                    radiusSection.style.display = usesDistance ? 'block' : 'none';
+                    if (!usesDistance) {
+                        radiusInput.value = '';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
